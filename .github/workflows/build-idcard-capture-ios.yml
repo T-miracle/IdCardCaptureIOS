@@ -17,20 +17,30 @@ jobs:
     env:
       PROJECT: IdCardCaptureIOS.xcodeproj
       SCHEME: IdCardCaptureIOS
-      # Do not commit DCloud's offline iOS SDK. Populate this directory from a private source
-      # before the build, for example with a private-repository checkout step.
-      DCUNI_SDK_ROOT: ${{ github.workspace }}/vendor/dcloud-ios-sdk
+      DCLOUD_SDK_REPOSITORY: T-miracle/dcloud-ios-sdk-private
+      DCLOUD_SDK_RELEASE_TAG: dcloud-sdk
     steps:
       - name: Check out source
         uses: actions/checkout@v4
 
-      # Example for a private source repository. Add a deploy key/token as a GitHub Secret first.
-      # - name: Fetch DCloud iOS SDK
-      #   uses: actions/checkout@v4
-      #   with:
-      #     repository: your-org/dcloud-ios-sdk-private
-      #     token: ${{ secrets.DCLOUD_SDK_REPO_TOKEN }}
-      #     path: vendor/dcloud-ios-sdk
+      - name: Download DCloud iOS SDK from private release
+        env:
+          GH_TOKEN: ${{ secrets.DCLOUD_SDK_REPO_TOKEN }}
+        run: |
+          test -n "$GH_TOKEN"
+          mkdir -p vendor/download vendor/dcloud-ios-sdk
+          gh release download "$DCLOUD_SDK_RELEASE_TAG" \
+            --repo "$DCLOUD_SDK_REPOSITORY" \
+            --pattern '*.zip' \
+            --dir vendor/download
+          SDK_ARCHIVE="$(find vendor/download -maxdepth 1 -type f -name '*.zip' -print -quit)"
+          test -n "$SDK_ARCHIVE"
+          ditto -x -k "$SDK_ARCHIVE" vendor/dcloud-ios-sdk
+
+          SDK_HEADER="$(find vendor/dcloud-ios-sdk -type f -path '*/HBuilder-Hello/inc/DCUniModule.h' -print -quit)"
+          test -n "$SDK_HEADER"
+          SDK_ROOT="${SDK_HEADER%/HBuilder-Hello/inc/DCUniModule.h}"
+          echo "DCUNI_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
 
       - name: Verify injected DCloud SDK
         run: |
