@@ -73,8 +73,21 @@ static NSString * const LQBackSide = @"back";
 
 @implementation LQCameraMaskView
 
+- (instancetype)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) {
+        // This view only paints the area outside the guide. It must remain
+        // non-opaque so the AVCapture preview is visible through the guide.
+        self.opaque = NO;
+        self.backgroundColor = UIColor.clearColor;
+        self.contentMode = UIViewContentModeRedraw;
+    }
+    return self;
+}
+
 - (void)drawRect:(CGRect)rect {
     CGContextRef context = UIGraphicsGetCurrentContext();
+    CGContextClearRect(context, rect);
     CGContextSetFillColorWithColor(context, [UIColor colorWithWhite:0 alpha:0.58].CGColor);
     CGContextFillRect(context, CGRectMake(0, 0, self.bounds.size.width, self.guideRect.origin.y));
     CGContextFillRect(context, CGRectMake(0, CGRectGetMaxY(self.guideRect), self.bounds.size.width,
@@ -124,6 +137,7 @@ static NSString * const LQBackSide = @"back";
 @property (nonatomic, strong) LQIdCardSlot *backSlot;
 @property (nonatomic, strong) UIButton *shutterButton;
 @property (nonatomic, strong) UIButton *doneButton;
+@property (nonatomic, strong) UILabel *cameraStatusLabel;
 @property (nonatomic, copy) NSString *activeSide;
 @property (nonatomic, copy) NSString *frontPath;
 @property (nonatomic, copy) NSString *backPath;
@@ -189,6 +203,15 @@ static NSString * const LQBackSide = @"back";
 
     self.previewView.previewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
 
+    self.cameraStatusLabel = [[UILabel alloc] initWithFrame:CGRectMake(24.0, CGRectGetHeight(self.view.bounds) - 40.0, 300.0, 24.0)];
+    self.cameraStatusLabel.autoresizingMask = UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleRightMargin;
+    self.cameraStatusLabel.backgroundColor = [UIColor colorWithWhite:0 alpha:0.65];
+    self.cameraStatusLabel.textColor = [UIColor colorWithRed:0.34 green:0.9 blue:0.3 alpha:1.0];
+    self.cameraStatusLabel.font = [UIFont systemFontOfSize:11.0 weight:UIFontWeightMedium];
+    self.cameraStatusLabel.textAlignment = NSTextAlignmentCenter;
+    self.cameraStatusLabel.text = @"相机：正在申请权限";
+    [self.view addSubview:self.cameraStatusLabel];
+
     self.maskView = [[LQCameraMaskView alloc] initWithFrame:self.view.bounds];
     self.maskView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     self.maskView.userInteractionEnabled = NO;
@@ -230,6 +253,7 @@ static NSString * const LQBackSide = @"back";
     [self.backSlot addTarget:self action:@selector(selectBack) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:self.frontSlot];
     [self.view addSubview:self.backSlot];
+    [self.view bringSubviewToFront:self.cameraStatusLabel];
 }
 
 - (UIButton *)textButton:(NSString *)title color:(UIColor *)color {
@@ -261,21 +285,31 @@ static NSString * const LQBackSide = @"back";
     }];
 }
 
+/** Shows the minimal native camera state on screen because HBuilderX does not forward iOS NSLog output. */
+- (void)updateCameraStatus:(NSString *)status {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        self.cameraStatusLabel.text = [@"相机：" stringByAppendingString:status ?: @"未知状态"];
+    });
+}
+
 - (void)configureCamera {
     if (self.sessionQueue == nil) {
         self.sessionQueue = dispatch_queue_create("io.github.uniidcardcapture.session", DISPATCH_QUEUE_SERIAL);
     }
     dispatch_async(self.sessionQueue, ^{
+        [self updateCameraStatus:@"正在配置会话"];
         if (self.session != nil) {
             if (!self.session.isRunning) {
                 [self.session startRunning];
             }
+            [self updateCameraStatus:self.session.isRunning ? @"会话已恢复" : @"会话恢复失败"];
             return;
         }
         AVCaptureDevice *device = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
         NSError *error = nil;
         AVCaptureDeviceInput *input = [AVCaptureDeviceInput deviceInputWithDevice:device error:&error];
         if (input == nil) {
+            [self updateCameraStatus:@"设备输入创建失败"];
             dispatch_async(dispatch_get_main_queue(), ^{
                 [self finishWithResult:@{ @"code": @-1, @"message": error.localizedDescription ?: @"相机启动失败" }];
             });
@@ -288,6 +322,7 @@ static NSString * const LQBackSide = @"back";
         AVCapturePhotoOutput *photoOutput = [[AVCapturePhotoOutput alloc] init];
         if (![session canAddOutput:photoOutput]) {
             [session commitConfiguration];
+            [self updateCameraStatus:@"拍照输出初始化失败"];
             dispatch_async(dispatch_get_main_queue(), ^{
                 [self finishWithResult:@{ @"code": @-1, @"message": @"相机拍照输出初始化失败" }];
             });
@@ -310,11 +345,14 @@ static NSString * const LQBackSide = @"back";
                 previewConnection.videoOrientation = AVCaptureVideoOrientationLandscapeRight;
             }
         });
+        [self updateCameraStatus:@"预览层已绑定，正在启动"];
         NSLog(@"[UNI-IDCARD-CAMERA] Starting capture session. input=%@ photoOutput=%@", input, photoOutput);
         [session startRunning];
         NSLog(@"[UNI-IDCARD-CAMERA] Capture session running=%d", session.isRunning);
         dispatch_async(dispatch_get_main_queue(), ^{
-            NSLog(@"[UNI-IDCARD-CAMERA] Preview layer attached=%d bounds=%@", self.previewView.previewLayer.session == session, NSStringFromCGRect(self.previewView.previewLayer.bounds));
+            BOOL attached = self.previewView.previewLayer.session == session;
+            NSLog(@"[UNI-IDCARD-CAMERA] Preview layer attached=%d bounds=%@", attached, NSStringFromCGRect(self.previewView.previewLayer.bounds));
+            [self updateCameraStatus:session.isRunning && attached ? @"会话已启动，预览层已绑定" : @"预览启动异常"];
         });
     });
 }
