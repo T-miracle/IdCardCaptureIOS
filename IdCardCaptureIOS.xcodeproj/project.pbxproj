@@ -11,6 +11,8 @@
 		A10000000000000000000004 /* LQIdCardCaptureViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000014 /* LQIdCardCaptureViewController.m */; };
 		A10000000000000000000005 /* AVFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000015 /* AVFoundation.framework */; };
 		A10000000000000000000006 /* UIKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000016 /* UIKit.framework */; };
+		A10000000000000000000007 /* CoreImage.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000018 /* CoreImage.framework */; };
+		A10000000000000000000008 /* CoreVideo.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A10000000000000000000019 /* CoreVideo.framework */; };
 
 		A10000000000000000000011 /* LQIdCardCaptureModule.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LQIdCardCaptureModule.h; sourceTree = "<group>"; };
 		A10000000000000000000012 /* LQIdCardCaptureModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LQIdCardCaptureModule.m; sourceTree = "<group>"; };
@@ -18,15 +20,17 @@
 		A10000000000000000000014 /* LQIdCardCaptureViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = LQIdCardCaptureViewController.m; sourceTree = "<group>"; };
 		A10000000000000000000015 /* AVFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AVFoundation.framework; path = System/Library/Frameworks/AVFoundation.framework; sourceTree = SDKROOT; };
 		A10000000000000000000016 /* UIKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UIKit.framework; path = System/Library/Frameworks/UIKit.framework; sourceTree = SDKROOT; };
+		A10000000000000000000018 /* CoreImage.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreImage.framework; path = System/Library/Frameworks/CoreImage.framework; sourceTree = SDKROOT; };
+		A10000000000000000000019 /* CoreVideo.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreVideo.framework; path = System/Library/Frameworks/CoreVideo.framework; sourceTree = SDKROOT; };
 		A10000000000000000000017 /* UniIdCardCapture.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = UniIdCardCapture.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 
-		A10000000000000000000021 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000005 /* AVFoundation.framework in Frameworks */, A10000000000000000000006 /* UIKit.framework in Frameworks */, ); runOnlyForDeploymentPostprocessing = 0; };
+		A10000000000000000000021 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000005 /* AVFoundation.framework in Frameworks */, A10000000000000000000006 /* UIKit.framework in Frameworks */, A10000000000000000000007 /* CoreImage.framework in Frameworks */, A10000000000000000000008 /* CoreVideo.framework in Frameworks */, ); runOnlyForDeploymentPostprocessing = 0; };
 		A10000000000000000000022 /* Headers */ = {isa = PBXHeadersBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* LQIdCardCaptureModule.h in Headers */, A10000000000000000000003 /* LQIdCardCaptureViewController.h in Headers */, ); runOnlyForDeploymentPostprocessing = 0; };
 		A10000000000000000000023 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000002 /* LQIdCardCaptureModule.m in Sources */, A10000000000000000000004 /* LQIdCardCaptureViewController.m in Sources */, ); runOnlyForDeploymentPostprocessing = 0; };
 
 		A10000000000000000000031 = {isa = PBXGroup; children = (A10000000000000000000032 /* IdCardCaptureIOS */, A10000000000000000000033 /* Frameworks */, A10000000000000000000034 /* Products */, ); sourceTree = "<group>"; };
 		A10000000000000000000032 /* IdCardCaptureIOS */ = {isa = PBXGroup; children = (A10000000000000000000011 /* LQIdCardCaptureModule.h */, A10000000000000000000012 /* LQIdCardCaptureModule.m */, A10000000000000000000013 /* LQIdCardCaptureViewController.h */, A10000000000000000000014 /* LQIdCardCaptureViewController.m */, A10000000000000000000035 /* Info.plist */, ); path = IdCardCaptureIOS; sourceTree = "<group>"; };
-		A10000000000000000000033 /* Frameworks */ = {isa = PBXGroup; children = (A10000000000000000000015 /* AVFoundation.framework */, A10000000000000000000016 /* UIKit.framework */, ); name = Frameworks; sourceTree = "<group>"; };
+		A10000000000000000000033 /* Frameworks */ = {isa = PBXGroup; children = (A10000000000000000000015 /* AVFoundation.framework */, A10000000000000000000016 /* UIKit.framework */, A10000000000000000000018 /* CoreImage.framework */, A10000000000000000000019 /* CoreVideo.framework */, ); name = Frameworks; sourceTree = "<group>"; };
 		A10000000000000000000034 /* Products */ = {isa = PBXGroup; children = (A10000000000000000000017 /* UniIdCardCapture.framework */, ); name = Products; sourceTree = "<group>"; };
 		A10000000000000000000035 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 

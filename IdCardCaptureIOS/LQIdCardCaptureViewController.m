@@ -1,5 +1,7 @@
 #import "LQIdCardCaptureViewController.h"
 #import <AVFoundation/AVFoundation.h>
+#import <CoreImage/CoreImage.h>
+#import <CoreVideo/CoreVideo.h>
 
 static CGFloat const LQIdCardRatio = 85.60 / 53.98;
 static NSString * const LQFrontSide = @"front";
@@ -91,27 +93,40 @@ static NSString * const LQBackSide = @"back";
 @end
 
 /**
- * Hosts AVCaptureVideoPreviewLayer as the view's backing layer.  Keeping the
- * layer coupled to a real UIView avoids an independently sized sublayer being
- * left behind during the host application's orientation transition.
+ * Shows camera frames supplied by AVCaptureVideoDataOutput. Some Uni-App host
+ * view hierarchies fail to present AVCaptureVideoPreviewLayer despite a running
+ * camera session, while a regular UIImageView remains reliably composited.
  */
 @interface LQCameraPreviewView : UIView
+@property (nonatomic, strong) UIImageView *imageView;
 @end
 
 @implementation LQCameraPreviewView
 
-+ (Class)layerClass {
-    return AVCaptureVideoPreviewLayer.class;
+- (instancetype)initWithFrame:(CGRect)frame {
+    self = [super initWithFrame:frame];
+    if (self) {
+        _imageView = [[UIImageView alloc] initWithFrame:self.bounds];
+        _imageView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        _imageView.contentMode = UIViewContentModeScaleAspectFill;
+        _imageView.clipsToBounds = YES;
+        [self addSubview:_imageView];
+    }
+    return self;
 }
 
 @end
 
-@interface LQIdCardCaptureViewController () <AVCapturePhotoCaptureDelegate>
+@interface LQIdCardCaptureViewController () <AVCapturePhotoCaptureDelegate, AVCaptureVideoDataOutputSampleBufferDelegate>
 @property (nonatomic, copy) LQIdCardCaptureCompletion completion;
 @property (nonatomic, strong) AVCaptureSession *session;
 @property (nonatomic, strong) AVCapturePhotoOutput *photoOutput;
+@property (nonatomic, strong) AVCaptureVideoDataOutput *videoOutput;
 @property (nonatomic, strong) LQCameraPreviewView *previewView;
 @property (nonatomic, strong) AVCaptureVideoPreviewLayer *previewLayer;
+@property (nonatomic, strong) CIContext *previewImageContext;
+@property (nonatomic) dispatch_queue_t videoOutputQueue;
+@property (nonatomic) BOOL renderingPreviewFrame;
 @property (nonatomic, strong) LQCameraMaskView *maskView;
 @property (nonatomic, strong) LQIdCardSlot *frontSlot;
 @property (nonatomic, strong) LQIdCardSlot *backSlot;
@@ -152,9 +167,8 @@ static NSString * const LQBackSide = @"back";
 
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
-    // The preview layer is the preview view's backing layer, so UIKit owns its
-    // size. Re-applying the local bounds also covers a layout pass during a
-    // landscape transition before the autoresizing mask settles.
+    // This non-visible layer keeps AVCapture's preview-to-photo crop conversion
+    // aligned with the UIImageView that renders the incoming camera frames.
     self.previewLayer.frame = self.previewView.bounds;
 
     CGFloat width = CGRectGetWidth(self.view.bounds);
@@ -183,7 +197,7 @@ static NSString * const LQBackSide = @"back";
     self.previewView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     [self.view addSubview:self.previewView];
 
-    self.previewLayer = (AVCaptureVideoPreviewLayer *)self.previewView.layer;
+    self.previewLayer = [AVCaptureVideoPreviewLayer layer];
     self.previewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
 
     self.maskView = [[LQCameraMaskView alloc] initWithFrame:self.view.bounds];
@@ -274,17 +288,61 @@ static NSString * const LQBackSide = @"back";
     }
     self.session = [[AVCaptureSession alloc] init];
     [self.session beginConfiguration];
-    self.session.sessionPreset = AVCaptureSessionPresetPhoto;
+    // High supports a continuous video output and still keeps PhotoOutput's
+    // captured image quality suitable for the ID-card crop.
+    self.session.sessionPreset = AVCaptureSessionPresetHigh;
     [self.session addInput:input];
     self.photoOutput = [[AVCapturePhotoOutput alloc] init];
     [self.session addOutput:self.photoOutput];
+    self.videoOutput = [[AVCaptureVideoDataOutput alloc] init];
+    self.videoOutput.alwaysDiscardsLateVideoFrames = YES;
+    self.videoOutput.videoSettings = @{
+        (id)kCVPixelBufferPixelFormatTypeKey: @(kCVPixelFormatType_32BGRA)
+    };
+    self.videoOutputQueue = dispatch_queue_create("io.github.uniidcardcapture.preview", DISPATCH_QUEUE_SERIAL);
+    [self.videoOutput setSampleBufferDelegate:self queue:self.videoOutputQueue];
+    if ([self.session canAddOutput:self.videoOutput]) {
+        [self.session addOutput:self.videoOutput];
+    }
     [self.session commitConfiguration];
     self.previewLayer.session = self.session;
     AVCaptureConnection *connection = self.previewLayer.connection;
     if (connection.isVideoOrientationSupported) {
         connection.videoOrientation = AVCaptureVideoOrientationLandscapeRight;
     }
+    AVCaptureConnection *videoConnection = [self.videoOutput connectionWithMediaType:AVMediaTypeVideo];
+    if (videoConnection.isVideoOrientationSupported) {
+        videoConnection.videoOrientation = AVCaptureVideoOrientationLandscapeRight;
+    }
+    self.previewImageContext = [CIContext contextWithOptions:nil];
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{ [self.session startRunning]; });
+}
+
+/** Draws the live video frame through UIKit instead of relying on the host's layer compositor. */
+- (void)captureOutput:(AVCaptureOutput *)output
+didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer
+       fromConnection:(AVCaptureConnection *)connection {
+    (void)connection;
+    if (output != self.videoOutput || self.renderingPreviewFrame) {
+        return;
+    }
+    CVImageBufferRef pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+    if (pixelBuffer == nil) {
+        return;
+    }
+    self.renderingPreviewFrame = YES;
+    CIImage *ciImage = [CIImage imageWithCVPixelBuffer:pixelBuffer];
+    CGImageRef cgImage = [self.previewImageContext createCGImage:ciImage fromRect:ciImage.extent];
+    if (cgImage == nil) {
+        self.renderingPreviewFrame = NO;
+        return;
+    }
+    UIImage *image = [UIImage imageWithCGImage:cgImage scale:UIScreen.mainScreen.scale orientation:UIImageOrientationUp];
+    CGImageRelease(cgImage);
+    dispatch_async(dispatch_get_main_queue(), ^{
+        self.previewView.imageView.image = image;
+        self.renderingPreviewFrame = NO;
+    });
 }
 
 - (void)takePhoto {
