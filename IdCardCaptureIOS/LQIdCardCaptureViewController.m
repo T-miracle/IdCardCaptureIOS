@@ -90,10 +90,27 @@ static NSString * const LQBackSide = @"back";
 
 @end
 
+/**
+ * Hosts AVCaptureVideoPreviewLayer as the view's backing layer.  Keeping the
+ * layer coupled to a real UIView avoids an independently sized sublayer being
+ * left behind during the host application's orientation transition.
+ */
+@interface LQCameraPreviewView : UIView
+@end
+
+@implementation LQCameraPreviewView
+
++ (Class)layerClass {
+    return AVCaptureVideoPreviewLayer.class;
+}
+
+@end
+
 @interface LQIdCardCaptureViewController () <AVCapturePhotoCaptureDelegate>
 @property (nonatomic, copy) LQIdCardCaptureCompletion completion;
 @property (nonatomic, strong) AVCaptureSession *session;
 @property (nonatomic, strong) AVCapturePhotoOutput *photoOutput;
+@property (nonatomic, strong) LQCameraPreviewView *previewView;
 @property (nonatomic, strong) AVCaptureVideoPreviewLayer *previewLayer;
 @property (nonatomic, strong) LQCameraMaskView *maskView;
 @property (nonatomic, strong) LQIdCardSlot *frontSlot;
@@ -135,7 +152,10 @@ static NSString * const LQBackSide = @"back";
 
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
-    self.previewLayer.frame = self.view.bounds;
+    // The preview layer is the preview view's backing layer, so UIKit owns its
+    // size. Re-applying the local bounds also covers a layout pass during a
+    // landscape transition before the autoresizing mask settles.
+    self.previewLayer.frame = self.previewView.bounds;
 
     CGFloat width = CGRectGetWidth(self.view.bounds);
     CGFloat height = CGRectGetHeight(self.view.bounds);
@@ -159,13 +179,12 @@ static NSString * const LQBackSide = @"back";
 
 /** Builds the overlay entirely in code so the plugin does not depend on a host storyboard. */
 - (void)buildInterface {
-    UIView *previewView = [[UIView alloc] initWithFrame:self.view.bounds];
-    previewView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    [self.view addSubview:previewView];
+    self.previewView = [[LQCameraPreviewView alloc] initWithFrame:self.view.bounds];
+    self.previewView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    [self.view addSubview:self.previewView];
 
-    self.previewLayer = [AVCaptureVideoPreviewLayer layer];
+    self.previewLayer = (AVCaptureVideoPreviewLayer *)self.previewView.layer;
     self.previewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
-    [previewView.layer addSublayer:self.previewLayer];
 
     self.maskView = [[LQCameraMaskView alloc] initWithFrame:self.view.bounds];
     self.maskView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
