@@ -60,7 +60,9 @@ jobs:
             exit 1
           }
           SDK_INCLUDE_DIR="$(dirname "$SDK_HEADER")"
+          SDK_INC_DIR="$(dirname "$SDK_INCLUDE_DIR")"
           echo "DCUNI_SDK_INCLUDE_DIR=$SDK_INCLUDE_DIR" >> "$GITHUB_ENV"
+          echo "DCUNI_SDK_INC_DIR=$SDK_INC_DIR" >> "$GITHUB_ENV"
 
       - name: Verify injected DCloud SDK
         run: |
