@@ -308,7 +308,7 @@ didFinishProcessingPhoto:(AVCapturePhoto *)photo
 /** Crops the still image using AVCapture's preview-to-output normalized rectangle conversion. */
 - (UIImage *)croppedGuideImage:(UIImage *)source {
     UIImage *normalized = [self normalizedImage:source];
-    CGRect normalizedRect = [self.previewLayer metadataOutputRectConvertedFromLayerRect:self.maskView.guideRect];
+    CGRect normalizedRect = [self.previewLayer metadataOutputRectOfInterestForRect:self.maskView.guideRect];
     CGRect pixels = CGRectMake(normalizedRect.origin.x * normalized.size.width,
         normalizedRect.origin.y * normalized.size.height,
         normalizedRect.size.width * normalized.size.width,
