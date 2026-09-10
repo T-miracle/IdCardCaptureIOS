@@ -1,6 +1,6 @@
 {
-  "name": "路桥身份证采集",
-  "id": "luqiao-idcard-capture",
+  "name": "Uni ID Card Capture",
+  "id": "uni-id-card-capture",
   "version": "0.2.0",
   "description": "iOS 原生身份证双面采集，提供横屏蒙层、引导框裁切与正反面列表回传。",
   "_dp_type": "nativeplugin",
@@ -9,8 +9,8 @@
       "plugins": [
         {
           "type": "module",
-          "name": "luqiao-idcard-capture",
-          "class": "LQIdCardCaptureModule"
+          "name": "uni-id-card-capture",
+          "class": "UniIdCardCaptureModule"
         }
       ],
       "integrateType": "framework"

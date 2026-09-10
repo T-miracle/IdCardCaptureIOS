@@ -1,27 +1,34 @@
-# iOS 身份证采集插件源码
+# Uni ID Card Capture for Uni-App — iOS
 
-`IdCardCaptureIOS.xcodeproj` 构建生成静态 `IdCardCaptureIOS.framework`。模块名与 Android 保持一致：
-`luqiao-idcard-capture`；成功回调为 `{ code: 0, images: [{ side, path, uri }, ...] }`。
+This is an open-source iOS native Module plugin for traditional Uni-App (Vue 2 / App-Plus). It builds a static `UniIdCardCapture.framework` and returns `{ code: 0, images: [{ side, path, uri }, ...] }`.
+
+## Plugin identity
+
+- Plugin ID / Module name: `uni-id-card-capture`
+- iOS Module class: `UniIdCardCaptureModule`
+- Framework: `UniIdCardCapture.framework`
 
 ## DCloud SDK 前置条件
 
-工程引用 `$(DCUNI_SDK_ROOT)/HBuilder-Hello/inc/DCUniModule.h`。请从 DCloud iOS 离线 SDK 中取得该目录，放入：
+Download an iOS offline SDK that matches your HBuilderX version. The workflow discovers the SDK header layout automatically; do not commit the SDK archive or its extracted files.
 
 ```text
-vendor/dcloud-ios-sdk/HBuilder-Hello/inc/DCUniModule.h
+vendor/dcloud-ios-sdk/
 ```
 
-该 SDK 不应提交到仓库。GitHub Actions 可通过私有仓库 checkout、受控制品下载等方式在构建时注入。
+For GitHub Actions, configure `DCLOUD_SDK_REPO_TOKEN` as a repository Secret and configure `DCLOUD_IOS_SDK_REPOSITORY` plus `DCLOUD_IOS_SDK_RELEASE_TAG` as Actions Variables. The private Release must provide `SDK.zip`.
 
 ## GitHub Actions 产物接入
 
-1. 手动运行 `Build iOS ID-card Capture Plugin` 工作流；
-2. 在该次运行的 Artifacts 下载并解压 `IdCardCaptureIOS-plugin.zip`；
-3. 将 `artifact/ios/IdCardCaptureIOS.framework` 放入智慧安全 App 项目的
-   `nativeplugins/luqiao-idcard-capture/ios/`；
-4. 将 `artifact/package.json` 的 `_dp_nativeplugin.ios` 节合并进智慧安全 App 插件根目录的 `package.json`；
-5. 在智慧安全 App 的 `manifest.json` 中，将
-   `nativePlugins.luqiao-idcard-capture.__plugin_info__.platforms` 扩展为 `Android,iOS`，再重新云打包。
+1. Run `Build iOS ID-card Capture Plugin` or push a change.
+2. Download the `UniIdCardCapture-ios-plugin` Artifact. Its nested archive contains `artifact/ios/UniIdCardCapture.framework` and `artifact/package.json`.
+3. Copy the framework to `nativeplugins/uni-id-card-capture/ios/` in a Uni-App project and copy `artifact/package.json` to the plugin root.
+4. Register the local plugin for iOS in `manifest.json`, configure `NSCameraUsageDescription`, then rebuild a custom base or cloud package.
+
+```js
+const capture = uni.requireNativePlugin('uni-id-card-capture');
+capture.capture({}, result => console.log(result.images));
+```
 
 ## App 权限
 

@@ -1,7 +1,7 @@
 #import "LQIdCardCaptureModule.h"
 #import "LQIdCardCaptureViewController.h"
 
-@implementation LQIdCardCaptureModule
+@implementation UniIdCardCaptureModule
 
 UNI_EXPORT_METHOD(@selector(capture:callback:))
 

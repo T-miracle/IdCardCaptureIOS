@@ -2,6 +2,6 @@
 #import "DCUniModule.h"
 
 /** Uni-App module entry point for the iOS ID-card capture flow. */
-@interface LQIdCardCaptureModule : DCUniModule
+@interface UniIdCardCaptureModule : DCUniModule
 
 @end

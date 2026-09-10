@@ -17,8 +17,8 @@ jobs:
     env:
       PROJECT: IdCardCaptureIOS.xcodeproj
       SCHEME: IdCardCaptureIOS
-      DCLOUD_SDK_REPOSITORY: T-miracle/dcloud-ios-sdk-private
-      DCLOUD_SDK_RELEASE_TAG: dcloud-sdk
+      DCLOUD_SDK_REPOSITORY: ${{ vars.DCLOUD_IOS_SDK_REPOSITORY }}
+      DCLOUD_SDK_RELEASE_TAG: ${{ vars.DCLOUD_IOS_SDK_RELEASE_TAG }}
     steps:
       - name: Check out source
         uses: actions/checkout@v4
@@ -31,6 +31,8 @@ jobs:
             echo "::error title=Missing SDK token::DCLOUD_SDK_REPO_TOKEN was not injected into this workflow run."
             exit 1
           fi
+          test -n "$DCLOUD_SDK_REPOSITORY" || { echo "::error::Set Actions variable DCLOUD_IOS_SDK_REPOSITORY."; exit 1; }
+          test -n "$DCLOUD_SDK_RELEASE_TAG" || { echo "::error::Set Actions variable DCLOUD_IOS_SDK_RELEASE_TAG."; exit 1; }
           echo "DCloud SDK download credential was injected."
           mkdir -p vendor/download vendor/dcloud-ios-sdk
           echo "Checking private release $DCLOUD_SDK_REPOSITORY@$DCLOUD_SDK_RELEASE_TAG ..."
@@ -83,13 +85,13 @@ jobs:
       - name: Package local Uni-App plugin artifact
         run: |
           mkdir -p artifact/ios
-          cp -R build/Release-iphoneos/IdCardCaptureIOS.framework artifact/ios/
+          cp -R build/Release-iphoneos/UniIdCardCapture.framework artifact/ios/
           cp ios-package.json artifact/package.json
-          ditto -c -k --sequesterRsrc --keepParent artifact IdCardCaptureIOS-plugin.zip
+          ditto -c -k --sequesterRsrc --keepParent artifact UniIdCardCapture-ios-plugin.zip
 
       - name: Upload plugin framework
         uses: actions/upload-artifact@v4
         with:
-          name: IdCardCaptureIOS-plugin
-          path: IdCardCaptureIOS-plugin.zip
+          name: UniIdCardCapture-ios-plugin
+          path: UniIdCardCapture-ios-plugin.zip
           retention-days: 30
