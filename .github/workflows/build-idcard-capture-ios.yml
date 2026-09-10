@@ -1,0 +1,63 @@
+name: Build iOS ID-card Capture Plugin
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'IdCardCaptureIOS/**'
+      - 'ios-package.json'
+      - '.github/workflows/build-idcard-capture-ios.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-framework:
+    runs-on: macos-14
+    env:
+      PROJECT: IdCardCaptureIOS.xcodeproj
+      SCHEME: IdCardCaptureIOS
+      # Do not commit DCloud's offline iOS SDK. Populate this directory from a private source
+      # before the build, for example with a private-repository checkout step.
+      DCUNI_SDK_ROOT: ${{ github.workspace }}/vendor/dcloud-ios-sdk
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      # Example for a private source repository. Add a deploy key/token as a GitHub Secret first.
+      # - name: Fetch DCloud iOS SDK
+      #   uses: actions/checkout@v4
+      #   with:
+      #     repository: your-org/dcloud-ios-sdk-private
+      #     token: ${{ secrets.DCLOUD_SDK_REPO_TOKEN }}
+      #     path: vendor/dcloud-ios-sdk
+
+      - name: Verify injected DCloud SDK
+        run: |
+          test -f "$DCUNI_SDK_ROOT/HBuilder-Hello/inc/DCUniModule.h"
+          xcodebuild -version
+
+      - name: Build static framework for physical iPhone/iPad devices
+        run: |
+          xcodebuild build \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            BUILD_DIR="$PWD/build" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Package local Uni-App plugin artifact
+        run: |
+          mkdir -p artifact/ios
+          cp -R build/Release-iphoneos/IdCardCaptureIOS.framework artifact/ios/
+          cp ios-package.json artifact/package.json
+          ditto -c -k --sequesterRsrc --keepParent artifact IdCardCaptureIOS-plugin.zip
+
+      - name: Upload plugin framework
+        uses: actions/upload-artifact@v4
+        with:
+          name: IdCardCaptureIOS-plugin
+          path: IdCardCaptureIOS-plugin.zip
+          retention-days: 30
