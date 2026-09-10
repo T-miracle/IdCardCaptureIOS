@@ -54,17 +54,17 @@ jobs:
           echo "Extracting SDK.zip ..."
           ditto -x -k "$SDK_ARCHIVE" vendor/dcloud-ios-sdk
 
-          SDK_HEADER="$(find vendor/dcloud-ios-sdk -type f -path '*/HBuilder-Hello/inc/DCUniModule.h' -print -quit)"
+          SDK_HEADER="$(find vendor/dcloud-ios-sdk -type f -name 'DCUniModule.h' -print -quit)"
           test -n "$SDK_HEADER" || {
-            echo "::error title=Invalid SDK archive::HBuilder-Hello/inc/DCUniModule.h was not found after extraction."
+            echo "::error title=Invalid SDK archive::DCUniModule.h was not found after extraction."
             exit 1
           }
-          SDK_ROOT="${SDK_HEADER%/HBuilder-Hello/inc/DCUniModule.h}"
-          echo "DCUNI_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          SDK_INCLUDE_DIR="$(dirname "$SDK_HEADER")"
+          echo "DCUNI_SDK_INCLUDE_DIR=$SDK_INCLUDE_DIR" >> "$GITHUB_ENV"
 
       - name: Verify injected DCloud SDK
         run: |
-          test -f "$DCUNI_SDK_ROOT/HBuilder-Hello/inc/DCUniModule.h"
+          test -f "$DCUNI_SDK_INCLUDE_DIR/DCUniModule.h"
           xcodebuild -version
 
       - name: Build static framework for physical iPhone/iPad devices
