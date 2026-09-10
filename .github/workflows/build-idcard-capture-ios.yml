@@ -27,18 +27,38 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.DCLOUD_SDK_REPO_TOKEN }}
         run: |
-          test -n "$GH_TOKEN"
+          if [ -z "${GH_TOKEN:-}" ]; then
+            echo "::error title=Missing SDK token::DCLOUD_SDK_REPO_TOKEN was not injected into this workflow run."
+            exit 1
+          fi
+          echo "DCloud SDK download credential was injected."
           mkdir -p vendor/download vendor/dcloud-ios-sdk
+          echo "Checking private release $DCLOUD_SDK_REPOSITORY@$DCLOUD_SDK_RELEASE_TAG ..."
+          gh release view "$DCLOUD_SDK_RELEASE_TAG" \
+            --repo "$DCLOUD_SDK_REPOSITORY" \
+            --json tagName,name,assets > vendor/release-info.json
+          jq -e '.assets[] | select(.name == "SDK.zip")' vendor/release-info.json > /dev/null || {
+            echo "::error title=SDK asset missing::Release must include an asset named SDK.zip."
+            exit 1
+          }
+          echo "Downloading SDK.zip ..."
           gh release download "$DCLOUD_SDK_RELEASE_TAG" \
             --repo "$DCLOUD_SDK_REPOSITORY" \
-            --pattern '*.zip' \
+            --pattern 'SDK.zip' \
             --dir vendor/download
-          SDK_ARCHIVE="$(find vendor/download -maxdepth 1 -type f -name '*.zip' -print -quit)"
-          test -n "$SDK_ARCHIVE"
+          SDK_ARCHIVE="vendor/download/SDK.zip"
+          test -s "$SDK_ARCHIVE" || {
+            echo "::error title=SDK download failed::SDK.zip was not downloaded or is empty."
+            exit 1
+          }
+          echo "Extracting SDK.zip ..."
           ditto -x -k "$SDK_ARCHIVE" vendor/dcloud-ios-sdk
 
           SDK_HEADER="$(find vendor/dcloud-ios-sdk -type f -path '*/HBuilder-Hello/inc/DCUniModule.h' -print -quit)"
-          test -n "$SDK_HEADER"
+          test -n "$SDK_HEADER" || {
+            echo "::error title=Invalid SDK archive::HBuilder-Hello/inc/DCUniModule.h was not found after extraction."
+            exit 1
+          }
           SDK_ROOT="${SDK_HEADER%/HBuilder-Hello/inc/DCUniModule.h}"
           echo "DCUNI_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
 
