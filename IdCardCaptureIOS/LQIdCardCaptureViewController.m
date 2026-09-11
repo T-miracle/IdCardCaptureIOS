@@ -445,8 +445,13 @@ static NSString * const LQBackSide = @"back";
     else { dispatch_async(dispatch_get_main_queue(), report); }
 }
 
+/** Host state is isolated from the camera's retained orientation policy. */
+- (UIInterfaceOrientation)cameraInterfaceOrientation {
+    return self.view.window.windowScene.interfaceOrientation;
+}
+
 - (AVCaptureVideoOrientation)currentVideoOrientation {
-    UIInterfaceOrientation orientation = self.view.window.windowScene.interfaceOrientation;
+    UIInterfaceOrientation orientation = [self cameraInterfaceOrientation];
     switch (orientation) {
         case UIInterfaceOrientationLandscapeLeft:
             self.landscapeVideoOrientation = AVCaptureVideoOrientationLandscapeLeft;
