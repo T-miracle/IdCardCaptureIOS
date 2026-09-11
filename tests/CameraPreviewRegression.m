@@ -71,8 +71,6 @@ static void LQRunRegressions(void) {
         [controller.view setNeedsLayout];
         [controller.view layoutIfNeeded];
         LQCheck(CGRectEqualToRect(controller.previewView.frame, controller.view.bounds), @"Preview must fill the final viewport.");
-        LQCheck(CGRectContainsRect(controller.view.bounds, controller.cameraStatusLabel.frame), @"Diagnostic text must remain on screen after rotation.");
-        LQCheck([controller.cameraStatusLabel.text containsString:LQ_CAPTURE_BUILD_ID], @"Diagnostic text must identify the compiled build.");
         LQCheckTransparentGuide(controller.maskView);
     }
 

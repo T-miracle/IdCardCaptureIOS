@@ -156,7 +156,6 @@ static NSString * const LQBackSide = @"back";
 @property (nonatomic, strong) LQIdCardSlot *backSlot;
 @property (nonatomic, strong) UIButton *shutterButton;
 @property (nonatomic, strong) UIButton *doneButton;
-@property (nonatomic, strong) UILabel *cameraStatusLabel;
 @property (nonatomic, copy) NSString *activeSide;
 @property (nonatomic, copy) NSString *frontPath;
 @property (nonatomic, copy) NSString *backPath;
@@ -273,9 +272,6 @@ static NSString * const LQBackSide = @"back";
     [self.maskView layoutIfNeeded];
 
     UIEdgeInsets insets = self.view.safeAreaInsets;
-    CGFloat statusLeft = MAX(24.0, insets.left + 8.0);
-    self.cameraStatusLabel.frame = CGRectMake(statusLeft, height - insets.bottom - 64.0,
-        MAX(1.0, width - statusLeft - MAX(24.0, insets.right + 8.0)), 60.0);
     [self updatePreviewOrientation];
 
     CGFloat shutterX = (CGRectGetMaxX(self.maskView.guideRect) + panelX) / 2.0 - 38.0;
@@ -289,16 +285,6 @@ static NSString * const LQBackSide = @"back";
     [self.view addSubview:self.previewView];
 
     self.previewView.previewLayer.videoGravity = AVLayerVideoGravityResizeAspectFill;
-
-    self.cameraStatusLabel = [[UILabel alloc] initWithFrame:CGRectMake(24.0, CGRectGetHeight(self.view.bounds) - 40.0, 300.0, 24.0)];
-    self.cameraStatusLabel.autoresizingMask = UIViewAutoresizingFlexibleTopMargin | UIViewAutoresizingFlexibleRightMargin;
-    self.cameraStatusLabel.backgroundColor = [UIColor colorWithWhite:0 alpha:0.65];
-    self.cameraStatusLabel.textColor = [UIColor colorWithRed:0.34 green:0.9 blue:0.3 alpha:1.0];
-    self.cameraStatusLabel.font = [UIFont systemFontOfSize:11.0 weight:UIFontWeightMedium];
-    self.cameraStatusLabel.textAlignment = NSTextAlignmentCenter;
-    self.cameraStatusLabel.numberOfLines = 3;
-    self.cameraStatusLabel.text = [LQ_CAPTURE_BUILD_ID stringByAppendingString:@"\n相机：等待页面显示"];
-    [self.view addSubview:self.cameraStatusLabel];
 
     self.maskView = [[LQCameraMaskView alloc] initWithFrame:self.view.bounds];
     self.maskView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
@@ -341,7 +327,6 @@ static NSString * const LQBackSide = @"back";
     [self.backSlot addTarget:self action:@selector(selectBack) forControlEvents:UIControlEventTouchUpInside];
     [self.view addSubview:self.frontSlot];
     [self.view addSubview:self.backSlot];
-    [self.view bringSubviewToFront:self.cameraStatusLabel];
 }
 
 - (UIButton *)textButton:(NSString *)title color:(UIColor *)color {
@@ -372,7 +357,6 @@ static NSString * const LQBackSide = @"back";
         [self configureCamera];
     } else if (status == AVAuthorizationStatusNotDetermined) {
         self.configuring = YES;
-        [self updateCameraStatus:@"正在申请相机权限"];
         [AVCaptureDevice requestAccessForMediaType:AVMediaTypeVideo completionHandler:^(BOOL granted) {
             dispatch_async(dispatch_get_main_queue(), ^{
                 self.configuring = NO;
@@ -390,17 +374,6 @@ static NSString * const LQBackSide = @"back";
                  message:status == AVAuthorizationStatusRestricted ? @"相机访问受到系统限制，请检查屏幕使用时间或设备管理设置。" : @"相机权限已关闭，请在系统设置中允许本 App 使用相机后重新进入。"
                    error:nil fatal:YES];
     }
-}
-
-/** Persistent on-device state includes the compiled version, even without Xcode. */
-- (void)updateCameraStatus:(NSString *)status {
-    void (^update)(void) = ^{
-        if (self.resolved || self.fatalError) { return; }
-        self.cameraStatusLabel.textColor = [UIColor colorWithRed:0.34 green:0.9 blue:0.3 alpha:1.0];
-        self.cameraStatusLabel.text = [NSString stringWithFormat:@"%@\n%@", LQ_CAPTURE_BUILD_ID, status ?: @"未知状态"];
-    };
-    if (NSThread.isMainThread) { update(); }
-    else { dispatch_async(dispatch_get_main_queue(), update); }
 }
 
 /** Only main-thread UI state changes here; callback payloads never include image data. */
@@ -426,8 +399,6 @@ static NSString * const LQBackSide = @"back";
             [self pauseCamera];
         }
         [self updateSelection];
-        self.cameraStatusLabel.textColor = [UIColor colorWithRed:1 green:0.65 blue:0.25 alpha:1];
-        self.cameraStatusLabel.text = [NSString stringWithFormat:@"%@ · %@/%@\n%@", LQ_CAPTURE_BUILD_ID, stage, code, message];
         NSLog(@"[UNI-IDCARD-CAMERA] build=%@ stage=%@ code=%@ native=%@/%ld", LQ_CAPTURE_BUILD_ID,
             stage, code, error.domain ?: @"none", (long)error.code);
         if (self.visible && self.presentedViewController == nil
@@ -489,7 +460,6 @@ static NSString * const LQBackSide = @"back";
     });
     self.cameraReady = NO;
     [self updateSelection];
-    [self updateCameraStatus:@"正在配置相机"];
     dispatch_async(self.sessionQueue, ^{
         if (self.resolved) { return; }
         AVCaptureSession *session = self.session;
@@ -550,7 +520,6 @@ static NSString * const LQBackSide = @"back";
             } else if (!session.isRunning) {
                 [self reportError:@"session" code:@"CAMERA_START_FAILED" message:@"相机会话启动失败，请返回后重试。" error:nil fatal:YES];
             } else {
-                [self updateCameraStatus:@"相机会话已启动，正在检查预览连接"];
                 [self checkPreviewConnection];
             }
         });
@@ -569,8 +538,6 @@ static NSString * const LQBackSide = @"back";
         [self updateSelection];
         if (!self.cameraReady) {
             [self reportError:@"preview" code:@"PREVIEW_CONNECTION_INACTIVE" message:@"预览连接未就绪，请返回后重新进入；若被系统中断，恢复后会自动重连。" error:nil fatal:NO];
-        } else {
-            [self updateCameraStatus:[NSString stringWithFormat:@"预览连接正常（%.0f × %.0f）；若仍黑屏，请截图保留版本信息", self.previewView.bounds.size.width, self.previewView.bounds.size.height]];
         }
     });
 }
@@ -634,7 +601,6 @@ static NSString * const LQBackSide = @"back";
     self.pendingImage = nil;
     self.pendingPath = nil;
     [self updateSelection];
-    [self updateCameraStatus:@"正在拍照"];
     AVCaptureVideoOrientation orientation = [self currentVideoOrientation];
     dispatch_async(self.sessionQueue, ^{
         if (self.resolved) { return; }
@@ -669,7 +635,6 @@ static NSString * const LQBackSide = @"back";
             [self reportError:@"decode" code:@"PHOTO_DECODE_FAILED" message:@"无法读取照片内容，请重新拍摄。" error:nil fatal:NO];
             return;
         }
-        [self updateCameraStatus:@"正在裁切并保存照片"];
         UIImage *image = [self croppedGuideImage:source];
         if (image == nil) {
             [self reportError:@"crop" code:@"PHOTO_CROP_FAILED" message:@"取景框裁切失败，请等待页面方向稳定后重新拍摄。" error:nil fatal:NO];
@@ -703,7 +668,6 @@ static NSString * const LQBackSide = @"back";
         self.pendingImage = nil;
         self.pendingPath = nil;
         [self updateSelection];
-        [self updateCameraStatus:self.frontPath.length && self.backPath.length ? @"正反面已保存，可以完成采集" : @"正面已保存，请拍摄反面"];
     });
 }
 
