@@ -1,7 +1,7 @@
 {
   "name": "Uni ID Card Capture",
   "id": "uni-id-card-capture",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "iOS 原生身份证双面采集，提供横屏蒙层、引导框裁切与正反面列表回传。",
   "_dp_type": "nativeplugin",
   "_dp_nativeplugin": {

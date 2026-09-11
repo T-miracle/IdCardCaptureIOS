@@ -5,6 +5,8 @@ on:
   push:
     paths:
       - 'IdCardCaptureIOS/**'
+      - 'IdCardCaptureIOS.xcodeproj/**'
+      - 'tests/**'
       - 'ios-package.json'
       - '.github/workflows/build-idcard-capture-ios.yml'
 
@@ -14,6 +16,7 @@ permissions:
 jobs:
   build-framework:
     runs-on: macos-14
+    timeout-minutes: 30
     env:
       PROJECT: IdCardCaptureIOS.xcodeproj
       SCHEME: IdCardCaptureIOS
@@ -22,6 +25,24 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+
+      - name: Stamp camera build identifier
+        run: |
+          VERSION="$(python3 -c 'import json; print(json.load(open("ios-package.json"))["version"])')"
+          CAPTURE_BUILD_ID="IDCapture ${VERSION}-${GITHUB_SHA:0:8}"
+          printf '#define LQ_CAPTURE_BUILD_ID @"%s"\n' "$CAPTURE_BUILD_ID" > IdCardCaptureIOS/LQCaptureBuild.h
+          echo "CAPTURE_BUILD_ID=$CAPTURE_BUILD_ID" >> "$GITHUB_ENV"
+
+      - name: Verify preview layout and capture state on iOS Simulator
+        run: bash tests/run-ios-regressions.sh
+
+      - name: Upload camera regression results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: camera-regression-results
+          path: build/regression-result.json
+          if-no-files-found: ignore
 
       - name: Download DCloud iOS SDK from private release
         env:
@@ -87,6 +108,10 @@ jobs:
           mkdir -p artifact/ios
           cp -R build/Release-iphoneos/UniIdCardCapture.framework artifact/ios/
           cp ios-package.json artifact/package.json
+          strings artifact/ios/UniIdCardCapture.framework/UniIdCardCapture > build/framework-strings.txt
+          grep -F "$CAPTURE_BUILD_ID" build/framework-strings.txt
+          printf 'build=%s\ncommit=%s\nrun=%s\n' "$CAPTURE_BUILD_ID" "$GITHUB_SHA" "$GITHUB_RUN_ID" > artifact/BUILD-INFO.txt
+          shasum -a 256 artifact/ios/UniIdCardCapture.framework/UniIdCardCapture >> artifact/BUILD-INFO.txt
           ditto -c -k --sequesterRsrc --keepParent artifact UniIdCardCapture-ios-plugin.zip
 
       - name: Upload plugin framework
