@@ -173,6 +173,9 @@ static NSString * const LQBackSide = @"back";
 @property (nonatomic, copy) NSString *captureSide;
 @property (nonatomic) CGRect captureGuideRect;
 @property (nonatomic) CGSize capturePreviewSize;
+// Uni-App locks its host in portrait. Keep the last valid camera landscape
+// direction instead of applying that host orientation during modal transitions.
+@property (nonatomic) AVCaptureVideoOrientation landscapeVideoOrientation;
 @property (nonatomic, strong) UIImage *pendingImage;
 @property (nonatomic, copy) NSString *pendingPath;
 @property (nonatomic, copy) NSDictionary *lastError;
@@ -185,6 +188,7 @@ static NSString * const LQBackSide = @"back";
     if (self) {
         _completion = [completion copy];
         _activeSide = LQFrontSide;
+        _landscapeVideoOrientation = AVCaptureVideoOrientationLandscapeRight;
         _sessionQueue = dispatch_queue_create("io.github.uniidcardcapture.session", DISPATCH_QUEUE_SERIAL);
     }
     return self;
@@ -192,6 +196,22 @@ static NSString * const LQBackSide = @"back";
 
 - (UIInterfaceOrientationMask)supportedInterfaceOrientations {
     return UIInterfaceOrientationMaskLandscape;
+}
+
+- (UIInterfaceOrientation)preferredInterfaceOrientationForPresentation {
+    return UIInterfaceOrientationLandscapeRight;
+}
+
+/** Read the settled window orientation after presentation/rotation completes. */
+- (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {
+    [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
+    [coordinator animateAlongsideTransition:nil completion:^(id<UIViewControllerTransitionCoordinatorContext> context) {
+        if (!self.resolved) {
+            [self.view setNeedsLayout];
+            [self.view layoutIfNeeded];
+            [self updatePreviewOrientation];
+        }
+    }];
 }
 
 - (BOOL)prefersStatusBarHidden {
@@ -215,6 +235,7 @@ static NSString * const LQBackSide = @"back";
     [super viewDidAppear:animated];
     self.visible = YES;
     [self.view layoutIfNeeded];
+    [self updatePreviewOrientation];
     [self requestAndStartCamera];
 }
 
@@ -427,11 +448,18 @@ static NSString * const LQBackSide = @"back";
 - (AVCaptureVideoOrientation)currentVideoOrientation {
     UIInterfaceOrientation orientation = self.view.window.windowScene.interfaceOrientation;
     switch (orientation) {
-        case UIInterfaceOrientationLandscapeLeft: return AVCaptureVideoOrientationLandscapeLeft;
-        case UIInterfaceOrientationPortrait: return AVCaptureVideoOrientationPortrait;
-        case UIInterfaceOrientationPortraitUpsideDown: return AVCaptureVideoOrientationPortraitUpsideDown;
-        default: return AVCaptureVideoOrientationLandscapeRight;
+        case UIInterfaceOrientationLandscapeLeft:
+            self.landscapeVideoOrientation = AVCaptureVideoOrientationLandscapeLeft;
+            break;
+        case UIInterfaceOrientationLandscapeRight:
+            self.landscapeVideoOrientation = AVCaptureVideoOrientationLandscapeRight;
+            break;
+        default:
+            // Portrait/unknown belongs to the host or a transition, never this
+            // landscape-only camera. Applying it rotates video by 90 degrees.
+            break;
     }
+    return self.landscapeVideoOrientation;
 }
 
 - (void)updatePreviewOrientation {

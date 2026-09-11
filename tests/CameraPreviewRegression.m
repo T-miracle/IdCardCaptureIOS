@@ -3,6 +3,28 @@
 #import "../IdCardCaptureIOS/LQIdCardCaptureViewController.m"
 
 static NSUInteger LQChecks = 0;
+
+// Substitute only the host's reported orientation; execute the production
+// currentVideoOrientation method with the same UIView -> UIWindow -> scene path.
+@interface LQOrientationScene : NSObject
+@property (nonatomic) UIInterfaceOrientation interfaceOrientation;
+@end
+@implementation LQOrientationScene
+@end
+
+@interface LQOrientationWindow : UIWindow
+@property (nonatomic, strong) LQOrientationScene *orientationScene;
+@end
+@implementation LQOrientationWindow
+- (UIWindowScene *)windowScene { return (UIWindowScene *)self.orientationScene; }
+@end
+
+@interface LQOrientationView : UIView
+@property (nonatomic, strong) LQOrientationWindow *orientationWindow;
+@end
+@implementation LQOrientationView
+- (UIWindow *)window { return self.orientationWindow; }
+@end
 static void LQCheck(BOOL passed, NSString *message) {
     if (!passed) { @throw [NSException exceptionWithName:@"RegressionFailure" reason:message userInfo:nil]; }
     LQChecks += 1;
@@ -31,6 +53,28 @@ static void LQCheckTransparentGuide(LQCameraMaskView *mask) {
 }
 
 static void LQRunRegressions(void) {
+    LQOrientationScene *scene = [[LQOrientationScene alloc] init];
+    LQOrientationWindow *window = [[LQOrientationWindow alloc] initWithFrame:CGRectMake(0, 0, 844, 390)];
+    window.orientationScene = scene;
+    for (NSUInteger entry = 0; entry < 2; entry++) {
+        LQIdCardCaptureViewController *camera = [[LQIdCardCaptureViewController alloc] initWithCompletion:nil];
+        LQOrientationView *view = [[LQOrientationView alloc] initWithFrame:window.bounds];
+        view.orientationWindow = window;
+        camera.view = view;
+        scene.interfaceOrientation = UIInterfaceOrientationPortrait;
+        LQCheck([camera currentVideoOrientation] == AVCaptureVideoOrientationLandscapeRight,
+            @"Entering from a portrait-locked host must keep a landscape preview, including re-entry.");
+        scene.interfaceOrientation = UIInterfaceOrientationLandscapeLeft;
+        LQCheck([camera currentVideoOrientation] == AVCaptureVideoOrientationLandscapeLeft,
+            @"The settled opposite landscape orientation must still be supported.");
+        scene.interfaceOrientation = UIInterfaceOrientationPortrait;
+        LQCheck([camera currentVideoOrientation] == AVCaptureVideoOrientationLandscapeLeft,
+            @"Returning host portrait state must not rotate the preview or photo connection.");
+        scene.interfaceOrientation = UIInterfaceOrientationLandscapeRight;
+        LQCheck([camera currentVideoOrientation] == AVCaptureVideoOrientationLandscapeRight,
+            @"A real landscape change must update the retained direction.");
+        camera.resolved = YES;
+    }
     LQIdCardCaptureViewController *controller = [[LQIdCardCaptureViewController alloc] initWithCompletion:nil];
     [controller loadViewIfNeeded]; // Must not request camera permission before presentation.
     LQCheck(controller.session == nil && !controller.configuring, @"Loading an offscreen view must not start the camera.");
