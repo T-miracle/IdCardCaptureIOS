@@ -107,6 +107,29 @@ jobs:
         run: |
           mkdir -p artifact/ios
           cp -R build/Release-iphoneos/UniIdCardCapture.framework artifact/ios/
+          # Xcode may encode resource PNG files as Apple-only CgBI images. Restore
+          # the normalized source files so Windows IDEs and HBuilderX can decode them.
+          cp IdCardCaptureIOS/id_card_front_guide.png artifact/ios/UniIdCardCapture.framework/
+          cp IdCardCaptureIOS/id_card_back_guide.png artifact/ios/UniIdCardCapture.framework/
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct
+
+          framework = Path("artifact/ios/UniIdCardCapture.framework")
+          for name in ("id_card_front_guide.png", "id_card_back_guide.png"):
+              data = (framework / name).read_bytes()
+              assert data.startswith(b"\x89PNG\r\n\x1a\n"), f"{name}: invalid PNG signature"
+              offset = 8
+              chunks = []
+              while offset < len(data):
+                  length = struct.unpack(">I", data[offset:offset + 4])[0]
+                  chunk = data[offset + 4:offset + 8]
+                  chunks.append(chunk)
+                  offset += length + 12
+                  if chunk == b"IEND":
+                      break
+              assert chunks == [b"IHDR", b"IDAT", b"IEND"], f"{name}: unexpected chunks {chunks}"
+          PY
           cp ios-package.json artifact/package.json
           strings artifact/ios/UniIdCardCapture.framework/UniIdCardCapture > build/framework-strings.txt
           grep -F "$CAPTURE_BUILD_ID" build/framework-strings.txt
