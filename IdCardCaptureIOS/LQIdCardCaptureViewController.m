@@ -72,6 +72,8 @@ static NSString * const LQBackSide = @"back";
 @property (nonatomic) CGRect guideRect;
 @property (nonatomic, strong) NSArray<UIView *> *panels;
 @property (nonatomic, strong) UIView *guideView;
+@property (nonatomic, strong) UIImageView *guideImageView;
+- (void)setActiveSide:(NSString *)side;
 @end
 
 @implementation LQCameraMaskView
@@ -95,7 +97,12 @@ static NSString * const LQBackSide = @"back";
         self.guideView.backgroundColor = UIColor.clearColor;
         self.guideView.layer.borderColor = UIColor.whiteColor.CGColor;
         self.guideView.layer.borderWidth = 2.0;
+        self.guideImageView = [[UIImageView alloc] initWithFrame:CGRectZero];
+        self.guideImageView.contentMode = UIViewContentModeScaleToFill;
+        self.guideImageView.userInteractionEnabled = NO;
+        [self.guideView addSubview:self.guideImageView];
         [self addSubview:self.guideView];
+        [self setActiveSide:LQFrontSide];
     }
     return self;
 }
@@ -118,6 +125,35 @@ static NSString * const LQBackSide = @"back";
     self.panels[2].frame = CGRectMake(0, CGRectGetMinY(guide), CGRectGetMinX(guide), guide.size.height);
     self.panels[3].frame = CGRectMake(CGRectGetMaxX(guide), CGRectGetMinY(guide), width - CGRectGetMaxX(guide), guide.size.height);
     self.guideView.frame = guide;
+    self.guideImageView.frame = CGRectInset(self.guideView.bounds, 8.0, 8.0);
+}
+
+/** Loads guide artwork from either the packaged framework or the host bundle. */
+- (UIImage *)guideImageNamed:(NSString *)name {
+    NSMutableArray<NSBundle *> *bundles = [NSMutableArray array];
+    NSBundle *classBundle = [NSBundle bundleForClass:self.class];
+    if (classBundle != nil) { [bundles addObject:classBundle]; }
+    if (![bundles containsObject:NSBundle.mainBundle]) { [bundles addObject:NSBundle.mainBundle]; }
+    NSString *frameworksPath = NSBundle.mainBundle.privateFrameworksPath;
+    if (frameworksPath.length > 0) {
+        NSBundle *frameworkBundle = [NSBundle bundleWithPath:
+            [frameworksPath stringByAppendingPathComponent:@"UniIdCardCapture.framework"]];
+        if (frameworkBundle != nil && ![bundles containsObject:frameworkBundle]) {
+            [bundles addObject:frameworkBundle];
+        }
+    }
+    for (NSBundle *bundle in bundles) {
+        NSString *path = [bundle pathForResource:name ofType:@"png"];
+        UIImage *image = path.length > 0 ? [UIImage imageWithContentsOfFile:path] : nil;
+        if (image != nil) { return image; }
+    }
+    return nil;
+}
+
+/** Switches the guide artwork to match the side currently being captured. */
+- (void)setActiveSide:(NSString *)side {
+    NSString *name = [side isEqualToString:LQBackSide] ? @"id_card_back_guide" : @"id_card_front_guide";
+    self.guideImageView.image = [self guideImageNamed:name];
 }
 
 @end
@@ -745,6 +781,7 @@ static NSString * const LQBackSide = @"back";
 }
 
 - (void)updateSelection {
+    [self.maskView setActiveSide:self.activeSide];
     [self.frontSlot setSelectedSlot:[self.activeSide isEqualToString:LQFrontSide]];
     [self.backSlot setSelectedSlot:[self.activeSide isEqualToString:LQBackSide]];
     BOOL complete = self.frontPath.length > 0 && self.backPath.length > 0;

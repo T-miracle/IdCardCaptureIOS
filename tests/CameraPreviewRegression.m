@@ -72,7 +72,18 @@ static void LQRunRegressions(void) {
         [controller.view layoutIfNeeded];
         LQCheck(CGRectEqualToRect(controller.previewView.frame, controller.view.bounds), @"Preview must fill the final viewport.");
         LQCheckTransparentGuide(controller.maskView);
+        LQCheck(controller.maskView.guideImageView.image != nil, @"The active ID-card side must display guide artwork.");
+        LQCheck(CGRectEqualToRect(controller.maskView.guideImageView.frame,
+            CGRectInset(controller.maskView.guideView.bounds, 8.0, 8.0)),
+            @"Guide artwork must retain an 8-point inset from the capture frame.");
     }
+
+    UIImage *frontGuide = controller.maskView.guideImageView.image;
+    [controller selectBack];
+    LQCheck(controller.maskView.guideImageView.image != nil
+        && controller.maskView.guideImageView.image != frontGuide,
+        @"Switching capture sides must switch the guide artwork.");
+    [controller selectFront];
 
     controller.frontPath = @"existing-front";
     controller.capturing = YES;

@@ -25,6 +25,8 @@ with open(sys.argv[1], 'wb') as output:
         'UILaunchScreen': {},
     }, output)
 PY
+cp IdCardCaptureIOS/id_card_front_guide.png "$APP/"
+cp IdCardCaptureIOS/id_card_back_guide.png "$APP/"
 codesign --force --sign - "$APP"
 xcrun simctl list runtimes -j > build/simulator-runtimes.json
 RUNTIME="$(python3 - <<'PY'
