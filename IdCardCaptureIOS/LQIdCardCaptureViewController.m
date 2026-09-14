@@ -1,4 +1,5 @@
 #import "LQIdCardCaptureViewController.h"
+#import "LQIdCardGuideData.h"
 #import <AVFoundation/AVFoundation.h>
 #import "LQCaptureBuild.h"
 
@@ -128,7 +129,7 @@ static NSString * const LQBackSide = @"back";
     self.guideImageView.frame = CGRectInset(self.guideView.bounds, 8.0, 8.0);
 }
 
-/** Loads guide artwork from either the packaged framework or the host bundle. */
+/** Loads guide artwork from a bundle when available, then falls back to binary-embedded PNG data. */
 - (UIImage *)guideImageNamed:(NSString *)name {
     NSMutableArray<NSBundle *> *bundles = [NSMutableArray array];
     NSBundle *classBundle = [NSBundle bundleForClass:self.class];
@@ -147,7 +148,11 @@ static NSString * const LQBackSide = @"back";
         UIImage *image = path.length > 0 ? [UIImage imageWithContentsOfFile:path] : nil;
         if (image != nil) { return image; }
     }
-    return nil;
+    NSString *base64 = [name isEqualToString:@"id_card_back_guide"]
+        ? LQIdCardBackGuideBase64
+        : LQIdCardFrontGuideBase64;
+    NSData *data = [[NSData alloc] initWithBase64EncodedString:base64 options:0];
+    return data.length > 0 ? [UIImage imageWithData:data] : nil;
 }
 
 /** Switches the guide artwork to match the side currently being captured. */
