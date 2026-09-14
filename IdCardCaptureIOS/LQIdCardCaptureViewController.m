@@ -253,6 +253,15 @@ static NSString * const LQBackSide = @"back";
     return YES;
 }
 
+- (UIStatusBarAnimation)preferredStatusBarUpdateAnimation {
+    return UIStatusBarAnimationFade;
+}
+
+- (void)viewWillAppear:(BOOL)animated {
+    [super viewWillAppear:animated];
+    [self setNeedsStatusBarAppearanceUpdate];
+}
+
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.view.backgroundColor = UIColor.blackColor;
@@ -300,9 +309,9 @@ static NSString * const LQBackSide = @"back";
     self.frontSlot.frame = CGRectMake(panelX, panelTop, panelWidth, cardHeight);
     self.backSlot.frame = CGRectMake(panelX, CGRectGetMaxY(self.frontSlot.frame) + 16.0, panelWidth, cardHeight);
 
-    CGFloat guideLeft = 44.0;
-    CGFloat guideMaxWidth = MAX(260.0, panelX - guideLeft - 130.0);
-    CGFloat guideHeight = MIN(height - 150.0, guideMaxWidth / LQIdCardRatio);
+    CGFloat guideLeft = 60.0;
+    CGFloat guideMaxWidth = MAX(260.0, panelX - guideLeft - 112.0);
+    CGFloat guideHeight = MIN(height - 132.0, guideMaxWidth / LQIdCardRatio);
     CGFloat guideWidth = guideHeight * LQIdCardRatio;
     self.maskView.guideRect = CGRectMake(guideLeft, (height - guideHeight) / 2.0, guideWidth, guideHeight);
     [self.maskView layoutIfNeeded];
@@ -310,8 +319,8 @@ static NSString * const LQBackSide = @"back";
     UIEdgeInsets insets = self.view.safeAreaInsets;
     [self updatePreviewOrientation];
 
-    CGFloat shutterX = (CGRectGetMaxX(self.maskView.guideRect) + panelX) / 2.0 - 38.0;
-    self.shutterButton.frame = CGRectMake(shutterX, (height - 76.0) / 2.0, 76.0, 76.0);
+    CGFloat shutterX = (CGRectGetMaxX(self.maskView.guideRect) + panelX) / 2.0 - 34.0;
+    self.shutterButton.frame = CGRectMake(shutterX, (height - 68.0) / 2.0, 68.0, 68.0);
 }
 
 /** Builds the overlay entirely in code so the plugin does not depend on a host storyboard. */
@@ -351,7 +360,7 @@ static NSString * const LQBackSide = @"back";
     [self.shutterButton setTitleColor:UIColor.darkGrayColor forState:UIControlStateNormal];
     self.shutterButton.titleLabel.font = [UIFont systemFontOfSize:13.0 weight:UIFontWeightMedium];
     self.shutterButton.backgroundColor = UIColor.whiteColor;
-    self.shutterButton.layer.cornerRadius = 38.0;
+    self.shutterButton.layer.cornerRadius = 34.0;
     self.shutterButton.layer.borderWidth = 4.0;
     self.shutterButton.layer.borderColor = UIColor.darkGrayColor.CGColor;
     [self.shutterButton addTarget:self action:@selector(takePhoto) forControlEvents:UIControlEventTouchUpInside];

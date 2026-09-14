@@ -46,6 +46,7 @@ UNI_EXPORT_METHOD(@selector(capture:callback:))
                 finish(result);
             }];
         controller.modalPresentationStyle = UIModalPresentationFullScreen;
+        controller.modalPresentationCapturesStatusBarAppearance = YES;
         [presenter presentViewController:controller animated:YES completion:nil];
         // UIKit can refuse presentation without an NSError. Report it once.
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 2 * NSEC_PER_SEC), dispatch_get_main_queue(), ^{
